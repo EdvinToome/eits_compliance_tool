@@ -48,8 +48,6 @@ class CompanyAssessment(models.Model):
                     self.type = cls.type
         super().save(*args, **kwargs)
 
-
-
     def get_cls(self):
         cls_name = f"{str(self.control).replace('.', '')}Assessment"
         if hasattr(assessments, cls_name):
@@ -83,8 +81,6 @@ class CompanyAssessment(models.Model):
     def create_manual_assessment_result(self, audit):
         AuditResult.objects.create(audit=audit, assessment=self, status=False)
 
-
-
     def __str__(self):
         return f"{self.company}-{self.control}"
 
@@ -106,3 +102,31 @@ class AuditResult(models.Model):
 
     def __str__(self):
         return f"{self.assessment.control}-{self.audit}"
+
+
+class ArchimateObject(models.Model):
+    type = models.CharField(max_length=100)
+    name = models.CharField(max_length=200)
+    object_id = models.CharField(max_length=300)
+    properties = models.JSONField(null=True, blank=True)
+    documentation = models.TextField(null=True, blank=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='archimate_objects')
+
+    def __str__(self):
+        return f"{self.type}-{self.name}"
+
+    def get_related_objects(self):
+        target_objects = ArchimateObject.objects.filter(
+            source_relations__target=self
+        )
+        source_objects = ArchimateObject.objects.filter(
+            target_relations__source=self
+        )
+        return (target_objects | source_objects).distinct()
+
+class ArchimateRelationship(models.Model):
+    type = models.CharField(max_length=100)
+    object_id = models.CharField(max_length=300)
+    source = models.ForeignKey(ArchimateObject, on_delete=models.CASCADE, related_name='source_relations')
+    target = models.ForeignKey(ArchimateObject, on_delete=models.CASCADE, related_name='target_relations')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='archimate_relationships')
