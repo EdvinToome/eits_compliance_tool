@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect
 from django.urls import path
 from django.utils.html import mark_safe
 
+from . import assessments
 from .models import Control, Audit, CompanyAssessment, Company, AuditResult, ArchimateObject, ArchimateRelationship
 
 
@@ -49,8 +50,25 @@ class ControlAdmin(admin.ModelAdmin):
     get_group_id_identification.admin_order_field = 'group_id'
 
 
+class CompanyAssessmentForm(forms.ModelForm):
+    class Meta:
+        model = CompanyAssessment
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super(CompanyAssessmentForm, self).__init__(*args, **kwargs)
+        valid_controls = []
+        for control in Control.objects.all():
+            cls_name = f"{str(control).replace('.', '')}Assessment"
+            if hasattr(assessments, cls_name):
+                valid_controls.append(control.pk)
+
+        self.fields['control'].queryset = Control.objects.filter(pk__in=valid_controls)
+
+
 @admin.register(CompanyAssessment)
 class CompanyAssessmentAdmin(admin.ModelAdmin):
+    form = CompanyAssessmentForm
     fields = ('control', 'company', 'extra_fields', 'get_help_text', 'type')
     list_display = ('control', 'company')
     readonly_fields = ('get_help_text',)
@@ -175,10 +193,8 @@ class AuditAdmin(admin.ModelAdmin):
 
     def start_audit(self, request, queryset):
         for audit in queryset:
-            for assessment in audit.company.assessments.filter(type__in=['semi_automatic', 'automatic']):
+            for assessment in audit.company.assessments.all():
                 assessment.run_assessment(audit)
-            for assessment in audit.company.assessments.filter(type='manual'):
-                assessment.create_manual_assessment_result(audit)
 
 
 @admin.register(AuditResult)
