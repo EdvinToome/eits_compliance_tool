@@ -4,10 +4,11 @@ from django import forms
 from django.contrib import admin
 from django.shortcuts import render, redirect
 from django.urls import path
-from django.utils.html import mark_safe
+from django.utils.html import mark_safe, format_html
 
 from . import assessments
-from .models import Control, Audit, CompanyAssessment, Company, AuditResult, ArchimateObject, ArchimateRelationship
+from .models import Control, Audit, CompanyAssessment, Company, AuditResult, ArchimateObject, ArchimateRelationship, \
+    AuditReport
 
 
 # Register your models here.
@@ -201,3 +202,23 @@ class AuditAdmin(admin.ModelAdmin):
 class AuditResultAdmin(admin.ModelAdmin):
     fields = ('audit', 'status', 'reviewed', 'comments', 'extra_fields', 'assessment')
     list_display = ('audit', 'status', 'reviewed', 'assessment')
+
+
+@admin.register(AuditReport)
+class AuditReportAdmin(admin.ModelAdmin):
+    list_display = ['audit', 'created_at', 'report_link']
+    actions = ['generate_audit_report']
+
+    def report_link(self, obj):
+        if obj.report_file:
+            return format_html("<a href='{}'>Download Report</a>", obj.report_file.url)
+        return "No report generated"
+
+    report_link.short_description = "Report"
+
+    def generate_audit_report(self, request, queryset):
+        for report in queryset:
+            report.generate_report()
+            report.save()
+
+    generate_audit_report.short_description = "Generate selected audit reports"

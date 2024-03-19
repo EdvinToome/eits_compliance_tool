@@ -1,0 +1,36 @@
+<!-- templates/audit_report_template.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Audit Report</title>
+    <style>
+        .container {
+            width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Audit Report for {{ audit.company }}</h1>
+    <p>Passed: {{ passed_count }}</p>
+    <p>Failed: {{ failed_count }}</p>
+    <p>Reviewed: {{ reviewed_count }}</p>
+    <p>Not Reviewed: {{ not_reviewed_count }}</p>
+    {% for result in audit_results %}
+    <h2>{{ result.assessment.control }}</h2>
+    <h4>{{result.assessment.control.name}}</h4>
+    <h5>{{ result.assessment.control.description|safe }}</h5>
+    <ul>Passed: {{ result.status }}</ul>
+    <ul>Comments: {{ result.comments|safe }}</ul>
+    <ul>Reviewed by auditor: {{ result.reviewed }}</ul>
+    <ul>Extra data: {{ result.extra_fields }}</ul>
+    <br>
+    {% endfor %}
+</div>
+</body>
+</html>

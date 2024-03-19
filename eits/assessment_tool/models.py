@@ -1,4 +1,6 @@
+from django.core.files.base import ContentFile
 from django.db import models
+from django.template.loader import render_to_string
 
 from . import assessments
 
@@ -124,9 +126,52 @@ class ArchimateObject(models.Model):
         )
         return (target_objects | source_objects).distinct()
 
+
 class ArchimateRelationship(models.Model):
     type = models.CharField(max_length=100)
     object_id = models.CharField(max_length=300)
     source = models.ForeignKey(ArchimateObject, on_delete=models.CASCADE, related_name='source_relations')
     target = models.ForeignKey(ArchimateObject, on_delete=models.CASCADE, related_name='target_relations')
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='archimate_relationships')
+
+
+class AuditReport(models.Model):
+    audit = models.ForeignKey(Audit, on_delete=models.CASCADE, related_name='reports')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    report_file = models.FileField(upload_to='audit_reports/', null=True, blank=True)
+
+    def __str__(self):
+        return f"Report for {self.audit} created at {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+    def generate_report(self):
+        audit_results = self.audit.results.all()
+        passed_count = 0
+        failed_count = 0
+        reviewed_count = 0
+        not_reviewed_count = 0
+
+        for result in audit_results:
+            if result.status:
+                passed_count += 1
+            else:
+                failed_count += 1
+
+            if result.reviewed:
+                reviewed_count += 1
+            else:
+                not_reviewed_count += 1
+        # Render the HTML report
+        html_content = render_to_string('audit_report_template.html', {
+            'audit': self.audit,
+            'audit_results': audit_results,
+            'passed_count': passed_count,
+            'failed_count': failed_count,
+            'reviewed_count': reviewed_count,
+            'not_reviewed_count': not_reviewed_count,
+        })
+
+        # Save the rendered HTML to a file
+        filename = f"audit_report_{self.audit.id}.html"
+        self.report_file.save(filename, ContentFile(html_content.encode('utf-8')))
+        self.save()
